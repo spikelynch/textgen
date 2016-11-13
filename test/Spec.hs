@@ -10,14 +10,26 @@ main :: IO ()
 main = hspec $ do
   describe "word" $ do
     it "makes a generator which returns a literal" $ do
-      literal <- return ( "Test" :: [ Char ] )
-      g <- return $ word literal
-      g1 <- getStdRandom $ runTextGen g
-      result <- return $ dumbjoin g1
-      result `shouldBe` literal
-      
+      w <- return ( "Test" :: [ Char ] )
+      w' <- literal w
+      w' `shouldBe` w
+
+  -- describe "quickcheck words" $ do
+  --   it "tests that a word S output S for all S" $ property $ prop_literals
 
 
+literal :: [ Char ] -> IO [ Char ]
+literal w = do
+  g <- return $ word w
+  g1 <- getStdRandom $ runTextGen g
+  return $ dumbjoin g1
+  
+
+
+-- prop_literals :: [ Char ] -> Property
+-- prop_literals w = monadicIO $ do
+--   w' <- literal w
+--   assert ( w' == w )
 
 
 -- genWord :: [ Char ] -> IO [ Char ]
