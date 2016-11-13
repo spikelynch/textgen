@@ -48,8 +48,8 @@ prop_choose (NonEmpty ws) = monadicIO $ do
     return $ dumbjoin g1
   assert (w' `elem` ws)
 
-prop_remove :: [ [ Char ] ] -> Property
-prop_remove ws = monadicIO $ do
+prop_remove :: NonEmptyList [ Char ] -> Property
+prop_remove (NonEmpty ws) = monadicIO $ do
   ( mw', ws' ) <- run $ do
     g <- return $ remove $ map word ws
     ( mg1, ws' ) <- getStdRandom $ runTextGen g   -- maybe
