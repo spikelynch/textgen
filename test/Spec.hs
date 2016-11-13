@@ -15,12 +15,21 @@ main = hspec $ do
       w' `shouldBe` w
 
   describe "quickcheck words" $ do
-    it "(word S) returns S" $ property $ prop_literals
+    it "checks (word S) returns S" $ property $ prop_literals
 
   describe "list" $ do
-    it "(list [ w1, w2, w3, .. ]) returns w1 w2 w3 .." $ property $ prop_list
+    it "checks (list [ w1, w2, w3, .. ]) returns w1 w2 w3 .." $ property $ prop_list
 
+  describe "basic choose" $ do
+    it "checks choose in an obvious way" $ do
+      ws <- return ( [ "a", "b", "c" ] :: [[ Char ]] )
+--      g <- return $ TextGen.choose $ map word ws
+--      w <- getStdRandom $ runTextGen g
+      ww <- choosew ws
+      ww `shouldSatisfy` (flip elem ws)
 
+  -- describe "choose" $ do
+  --   it "checks (choose list) returns a member of list" $ property $ prop_choose 
 
 
 literal :: [ Char ] -> IO [ Char ]
@@ -45,3 +54,14 @@ prop_list :: [ [ Char ] ] -> Property
 prop_list ws = monadicIO $ do
   ws' <- run $ listconcat ws
   assert ( ws' == dumbjoin ws )
+
+choosew :: [ [ Char ] ]  -> IO [ Char ]
+choosew ws = do
+  g <- return $ TextGen.choose $ map word ws
+  g1 <- getStdRandom $ runTextGen g
+  return $ dumbjoin g1
+
+prop_choose :: [ [ Char ] ] -> Property
+prop_choose ws = monadicIO $ do
+  w' <- run $ choosew ws
+  assert (w' `elem` ws)
