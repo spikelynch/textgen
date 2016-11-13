@@ -9,59 +9,56 @@ import System.Random
 main :: IO ()
 main = hspec $ do
   describe "word" $ do
-    it "makes a generator which returns a literal" $ do
-      w <- return ( "Test" :: [ Char ] )
-      w' <- literal w
-      w' `shouldBe` w
-
-  describe "quickcheck words" $ do
     it "checks (word S) returns S" $ property $ prop_literals
 
   describe "list" $ do
-    it "checks (list [ w1, w2, w3, .. ]) returns w1 w2 w3 .." $ property $ prop_list
+    it "checks that (list ws) = concat ws" $ property $ prop_list
 
-  describe "basic choose" $ do
-    it "checks choose in an obvious way" $ do
-      ws <- return ( [ "a", "b", "c" ] :: [[ Char ]] )
---      g <- return $ TextGen.choose $ map word ws
---      w <- getStdRandom $ runTextGen g
-      ww <- choosew ws
-      ww `shouldSatisfy` (flip elem ws)
+  describe "choose" $ do
+    it "checks (choose ws) returns a member of ws" $ property $ prop_choose 
 
-  -- describe "choose" $ do
-  --   it "checks (choose list) returns a member of list" $ property $ prop_choose 
+  describe "remove" $ do
+    it "checks (remove ws) removes one and returns the rest" $ property $ prop_remove
 
-
-literal :: [ Char ] -> IO [ Char ]
-literal w = do
-  g <- return $ word w
-  g1 <- getStdRandom $ runTextGen g
-  return $ dumbjoin g1
   
 prop_literals :: [ Char ] -> Property
 prop_literals w = monadicIO $ do
-  w' <- run $ literal w
+  w' <- run $ do
+    g <- return $ word w
+    g1 <- getStdRandom $ runTextGen g
+    return $ dumbjoin g1 
   assert ( w' == w )
 
 
-listconcat :: [ [ Char ] ] -> IO [ Char ]
-listconcat ws = do
-  g <- return $ list $ map word ws
-  g1 <- getStdRandom $ runTextGen g
-  return $ dumbjoin g1
-
 prop_list :: [ [ Char ] ] -> Property
 prop_list ws = monadicIO $ do
-  ws' <- run $ listconcat ws
+  ws' <- run $ do
+    g <- return $ list $ map word ws
+    g1 <- getStdRandom $ runTextGen g
+    return $ dumbjoin g1
   assert ( ws' == dumbjoin ws )
 
-choosew :: [ [ Char ] ]  -> IO [ Char ]
-choosew ws = do
-  g <- return $ TextGen.choose $ map word ws
-  g1 <- getStdRandom $ runTextGen g
-  return $ dumbjoin g1
+-- choose is unsafe and can't handle empty option lists
 
-prop_choose :: [ [ Char ] ] -> Property
-prop_choose ws = monadicIO $ do
-  w' <- run $ choosew ws
+prop_choose :: NonEmptyList [ Char ] -> Property
+prop_choose (NonEmpty ws) = monadicIO $ do
+  w' <- run $ do
+    g <- return $ TextGen.choose $ map word ws
+    g1 <- getStdRandom $ runTextGen g
+    return $ dumbjoin g1
   assert (w' `elem` ws)
+
+prop_remove :: [ [ Char ] ] -> Property
+prop_remove ws = monadicIO $ do
+  ( mw', ws' ) <- run $ do
+    g <- return $ remove $ map word ws
+    ( mg1, ws' ) <- getStdRandom $ runTextGen g   -- maybe
+    case mg1 of
+      Nothing -> return ( Nothing, ws' )
+      Just g1 -> return ( Just (dumbjoin g1), ws' )
+  remainder <- run $ flip mapM ws' $ \w -> do
+    g <- getStdRandom $ runTextGen w
+    return $ dumbjoin g
+  case mw' of
+    Nothing -> assert True
+    Just w' -> assert ( ( w' `elem` ws ) && (not ( w' `elem` remainder ) ) )

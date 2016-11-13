@@ -56,6 +56,8 @@ word a = return [ a ]
 -- TODO: chooseN (get multiple items from the same list without
 -- repeats)
 
+-- Note: choose throws an exception if options is an empty list
+
 choose :: (RandomGen g) => [ TextGen g a ] -> TextGen g a
 choose options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 1 ) s
                                      (TextGen optf) = options !! i
