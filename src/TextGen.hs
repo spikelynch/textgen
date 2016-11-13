@@ -9,6 +9,7 @@ module TextGen (
   ,rep
   ,randrep
   ,smartjoin
+  ,dumbjoin
   ,upcase
   ,loadOptions
   ,loadList
@@ -154,8 +155,12 @@ smartjoin_r (w:xs) = case xs of
   otherwise -> w ++ " " ++ smartjoin_r(xs)
 smartjoin_r [] = []
 
+dumbjoin :: [ [ Char ] ] -> [ Char ]
+dumbjoin s = intercalate " " s
 
 
 upcase :: [Char] -> [Char]
 upcase (x:xs) = (toUpper x):xs
 upcase []     = []
+
+
