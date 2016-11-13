@@ -14,8 +14,13 @@ main = hspec $ do
       w' <- literal w
       w' `shouldBe` w
 
-  -- describe "quickcheck words" $ do
-  --   it "tests that a word S output S for all S" $ property $ prop_literals
+  describe "quickcheck words" $ do
+    it "(word S) returns S" $ property $ prop_literals
+
+  describe "list" $ do
+    it "(list [ w1, w2, w3, .. ]) returns w1 w2 w3 .." $ property $ prop_list
+
+
 
 
 literal :: [ Char ] -> IO [ Char ]
@@ -24,15 +29,19 @@ literal w = do
   g1 <- getStdRandom $ runTextGen g
   return $ dumbjoin g1
   
+prop_literals :: [ Char ] -> Property
+prop_literals w = monadicIO $ do
+  w' <- run $ literal w
+  assert ( w' == w )
 
 
--- prop_literals :: [ Char ] -> Property
--- prop_literals w = monadicIO $ do
---   w' <- literal w
---   assert ( w' == w )
+listconcat :: [ [ Char ] ] -> IO [ Char ]
+listconcat ws = do
+  g <- return $ list $ map word ws
+  g1 <- getStdRandom $ runTextGen g
+  return $ dumbjoin g1
 
-
--- genWord :: [ Char ] -> IO [ Char ]
--- genWord w = do
---   g <- return $ word w
---   generate g
+prop_list :: [ [ Char ] ] -> Property
+prop_list ws = monadicIO $ do
+  ws' <- run $ listconcat ws
+  assert ( ws' == dumbjoin ws )
