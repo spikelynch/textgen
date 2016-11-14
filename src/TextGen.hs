@@ -2,6 +2,7 @@ module TextGen (
   TextGen
   ,runTextGen
   ,word
+  ,aword
   ,choose
   ,remove
   ,list
@@ -50,6 +51,17 @@ instance (RandomGen s) => Applicative (TextGen s) where
 
 word :: (RandomGen g) => [Char] -> TextGen g [[Char]]
 word a = return [ a ]
+
+
+aword :: (RandomGen g) => [ Char ] -> TextGen g [ [Char] ]
+aword [] = return [ [] ]
+aword (c:cs) = case vowel c of
+  True -> word ( "an " ++ (c:cs) )
+  False -> word ( "a " ++ (c:cs) )
+
+vowel :: Char -> Bool
+vowel x = elem x "aeiouAEIOU"
+
 
 -- (choose [ TextGen ]) -> choose one of the TextGens in the list
                               
@@ -136,8 +148,6 @@ loadList fname = do
 -- punctuation (ie commas get stuck to their left-hand neighbours without
 -- spaces: terminal commas become full stops)
 
-
-
 smartjoin :: [ [Char] ] -> [Char]
 smartjoin ws = smartjoin_r $ undupe ws
 
@@ -156,6 +166,8 @@ smartjoin_r (w:xs) = case xs of
   [] -> w ++ "."
   otherwise -> w ++ " " ++ smartjoin_r(xs)
 smartjoin_r [] = []
+
+
 
 dumbjoin :: [ [ Char ] ] -> [ Char ]
 dumbjoin s = intercalate " " s
