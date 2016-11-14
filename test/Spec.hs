@@ -5,6 +5,12 @@ import Test.QuickCheck.Monadic
 import TextGen (TextGen, runTextGen, word, choose, remove, list, randrep, rep, perhaps, smartjoin, dumbjoin)
 import System.Random
 
+import Data.List (intercalate)
+
+type TextGenCh = TextGen StdGen [[Char]]
+
+
+
 
 main :: IO ()
 main = hspec $ do
@@ -48,17 +54,30 @@ prop_choose (NonEmpty ws) = monadicIO $ do
     return $ dumbjoin g1
   assert (w' `elem` ws)
 
-prop_remove :: NonEmptyList [ Char ] -> Property
-prop_remove (NonEmpty ws) = monadicIO $ do
+prop_remove :: [ [ Char ] ] -> Property
+prop_remove ws = monadicIO $ do
   ( mw', ws' ) <- run $ do
     g <- return $ remove $ map word ws
-    ( mg1, ws' ) <- getStdRandom $ runTextGen g   -- maybe
+    ( mg1, ws' ) <- getStdRandom $ runTextGen g
+    sl' <- genlist ws'
     case mg1 of
-      Nothing -> return ( Nothing, ws' )
-      Just g1 -> return ( Just (dumbjoin g1), ws' )
+      Nothing -> do
+        return ( Nothing, ws' )
+      Just g1 -> do
+        w <- return $ dumbjoin g1
+        return ( Just w, ws' )
   remainder <- run $ flip mapM ws' $ \w -> do
     g <- getStdRandom $ runTextGen w
     return $ dumbjoin g
   case mw' of
     Nothing -> assert True
-    Just w' -> assert ( ( w' `elem` ws ) && (not ( w' `elem` remainder ) ) )
+    Just w' -> assert ( ( w' `elem` ws ) && (countin remainder == (countin ws) - 1 ) )
+      where countin l = length $ filter (== w') l
+
+
+genlist :: [ TextGenCh ] -> IO [ Char ]
+genlist ws = do
+  results <- flip mapM ws $ \w -> do
+    g <- getStdRandom $ runTextGen w
+    return $ dumbjoin g
+  return $ "[" ++ (intercalate ", " results) ++ "]"
