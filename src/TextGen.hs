@@ -2,7 +2,7 @@ module TextGen (
   TextGen
   ,runTextGen
   ,word
-  ,aword
+  ,aan
   ,choose
   ,remove
   ,list
@@ -52,15 +52,6 @@ instance (RandomGen s) => Applicative (TextGen s) where
 word :: (RandomGen g) => [Char] -> TextGen g [[Char]]
 word a = return [ a ]
 
-
-aword :: (RandomGen g) => [ Char ] -> TextGen g [ [Char] ]
-aword [] = return [ [] ]
-aword (c:cs) = case vowel c of
-  True -> word ( "an " ++ (c:cs) )
-  False -> word ( "a " ++ (c:cs) )
-
-vowel :: Char -> Bool
-vowel x = elem x "aeiouAEIOU"
 
 
 -- (choose [ TextGen ]) -> choose one of the TextGens in the list
@@ -142,6 +133,28 @@ loadList :: (RandomGen g) => [Char] -> IO ([TextGen g [[Char]]])
 loadList fname = do
   contents <- fmap T.lines (Tio.readFile fname)
   return $ map ( word . T.unpack ) contents
+
+
+-- generic transform: take a function f from [ a ] -> [ a ] and 'wrap' a
+-- TextGen in it so the TextGen's output is applied to it before returning
+
+prefix :: (RandomGen g) => ( [ a ] -> [ a ] ) -> TextGen g [ a ] ->  TextGen g [ a ]
+prefix tr g = TextGen $ \s -> let (TextGen gf) = g
+                                  ( orig, s' ) = gf s
+                              in ( tr orig, s' )
+
+
+aan :: (RandomGen g) => TextGen g [ [ Char ] ] -> TextGen g [ [ Char ] ]
+aan g = prefix article g
+  where article []       = []
+        article (w:ws)   = (article_w w):w:ws
+        article_w []     = []
+        article_w (c:cs) = if vowel c then "an" else "a"
+
+vowel :: Char -> Bool
+vowel x = elem x "aeiouAEIOU"
+
+
 
 
 -- smartjoin: concatenates a list of strings with some attention to 

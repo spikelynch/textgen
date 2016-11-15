@@ -2,7 +2,7 @@ import Test.Hspec
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
-import TextGen (TextGen, runTextGen, word, aword, choose, remove, list, randrep, rep, perhaps, smartjoin, dumbjoin)
+import TextGen (TextGen, runTextGen, word, aan, choose, remove, list, randrep, rep, perhaps, smartjoin, dumbjoin)
 import System.Random
 
 import Data.List (intercalate)
@@ -17,8 +17,8 @@ main = hspec $ do
   describe "word" $ do
     it "checks (word S) returns S" $ property $ prop_literals
 
-  describe "aword" $ do
-    it "checks (aword S) has good articles" $ property $ prop_aword
+  describe "aan" $ do
+    it "checks (aan $ choose [s]) has good articles" $ property $ prop_aans
 
   describe "list" $ do
     it "checks that (list ws) = concat ws" $ property $ prop_list
@@ -53,21 +53,22 @@ prop_literals w = monadicIO $ do
 
 
 
-prop_aword :: [ Char ] -> Property
-prop_aword w = monadicIO $ do
-  w' <- run $ do
-    g <- return $ aword w
+prop_aans :: NonEmptyList [ Char ] -> Property
+prop_aans (NonEmpty ws) = monadicIO $ do
+  ws' <- run $ do
+    g <- return $ aan $ TextGen.choose $ map word ws
     g1 <- getStdRandom $ runTextGen g
-    return $ dumbjoin g1
-  mf <- return $ mfirst w
-  case mf of
-    Nothing -> assert True
-    Just c  -> do
-      case c `elem` "aeiouAEIOU" of
-        True -> assert ( w' == "an " ++ w )
-        False -> assert ( w' == "a " ++ w )
-      
+    return $ g1
+  assert $ correct_article ws'
 
+correct_article :: [ [ Char ] ] -> Bool
+correct_article (x:y:zs) = case mfirst y of
+  Nothing -> True
+  Just c -> case c `elem` "aeiouAEIOU" of
+    True -> ( x == "an" )
+    False -> ( x == "a" )
+correct_article _ = False
+      
 mfirst :: [ Char ] -> Maybe Char
 mfirst []   = Nothing
 mfirst (c:cs) = Just c
