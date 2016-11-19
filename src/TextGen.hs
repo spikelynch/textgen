@@ -1,7 +1,8 @@
 module TextGen (
-  TextGen
+  TextGen(..)
   ,runTextGen
   ,word
+  ,tgempty
   ,aan
   ,choose
   ,remove
@@ -51,6 +52,9 @@ instance (RandomGen s) => Applicative (TextGen s) where
 
 word :: (RandomGen g) => [Char] -> TextGen g [[Char]]
 word a = return [ a ]
+
+tgempty :: (RandomGen g) => TextGen g [[Char]]
+tgempty = return [ ]
 
 
 
