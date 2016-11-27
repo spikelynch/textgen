@@ -5,6 +5,7 @@ module TextGen (
   ,tgempty
   ,aan
   ,choose
+  ,weighted
   ,remove
   ,list
   ,perhaps
@@ -71,6 +72,26 @@ choose options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 
                                  in optf s'
 
 
+weighted :: (RandomGen g) => [ ( Int, TextGen g a ) ] -> TextGen g a
+weighted options = TextGen $ \s -> let ( option, s' ) = weightedR options s
+                                       (TextGen optf) = option
+                                   in optf s'
+
+weightedR :: (RandomGen g) => [ ( Int, a ) ] -> g -> (a, g)
+weightedR options g = let total = sum $ map (\(i, _) -> i) options
+                          (i, g') = randomR ( 0, total - 1 ) g
+                          a = selectR i options
+                      in ( a, g' )
+
+-- this breaks on an empty input list
+
+selectR :: Int -> [ ( Int, a ) ] -> a
+selectR i ((w, a):[]) = a
+selectR i ((w, a):ws) = case i < w of
+  True -> a
+  False -> selectR ( i - w ) ws
+
+
 -- for choose-and-remove: remember that a state combinator is a
 -- lambda which wraps one or more existing combinators
 
@@ -119,7 +140,7 @@ randrep (min, max) s1 = TextGen $ \s -> let ( n, s' ) = randomR (min, max) s
                                             (TextGen s2f) = rep n s1
                                         in s2f s'
                                            
--- perhaps (n, m) TextGen -> Do a TextGen if rand(n) > m, otherwise empty
+-- perhaps (n, m) TextGen -> Do a TextGen if rand(m) > n, otherwise empty
 
 perhaps :: (RandomGen g) => (Int, Int) -> TextGen g [ a ] -> TextGen g [ a ]
 perhaps (n, m) s1 = TextGen $ \s -> let ( n1, s' ) = randomR (0, m) s

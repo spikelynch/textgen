@@ -92,6 +92,9 @@ prop_choose (NonEmpty ws) = monadicIO $ do
     return $ dumbjoin g1
   assert (w' `elem` ws)
 
+
+
+
 prop_remove :: [ [ Char ] ] -> Property
 prop_remove ws = monadicIO $ do
   ( mw', ws' ) <- run $ do
