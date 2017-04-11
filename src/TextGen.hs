@@ -5,6 +5,8 @@ module TextGen (
   ,tgempty
   ,aan
   ,choose
+  ,choose'
+  ,sampleR
   ,weighted
   ,remove
   ,list
@@ -61,8 +63,6 @@ tgempty = return [ ]
 
 -- (choose [ TextGen ]) -> choose one of the TextGens in the list
                               
--- TODO: chooseN (get multiple items from the same list without
--- repeats)
 
 -- Note: choose throws an exception if options is an empty list
 
@@ -70,6 +70,8 @@ choose :: (RandomGen g) => [ TextGen g a ] -> TextGen g a
 choose options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 1 ) s
                                      (TextGen optf) = options !! i
                                  in optf s'
+
+
 
 
 weighted :: (RandomGen g) => [ ( Int, TextGen g a ) ] -> TextGen g a
@@ -100,12 +102,16 @@ selectR i ((w, a):ws) = case i < w of
 --   - return that option and a new combinator with the new list
 --   - to get the new combinator it has to call itself with the new list
 
-removel :: Int -> [ a ] -> (  [ a ], [ a ] )
+removel :: Int -> [ a ] -> ( [ a ], [ a ] )
 removel i l = let ( h, t ) = splitAt i l
           in case ( h, t ) of
                ( _, [] ) -> ( [], l )
                ( h, t:ts ) -> ( [ t ], h ++ ts )
 
+
+
+
+-- Unlike choose, this is safe, because it returns Maybe A as the output
 
 remove :: (RandomGen g) => [ TextGen g a ] -> TextGen g ( Maybe a, [ TextGen g a ] )
 remove options = TextGen $ \s -> let ( i, s1 ) = randomR (0, (length options) - 1 ) s
@@ -115,6 +121,76 @@ remove options = TextGen $ \s -> let ( i, s1 ) = randomR (0, (length options) - 
                                       (o:os) -> let (TextGen optf) = o
                                                     ( x, s2 ) = optf s1
                                                 in ( ( Just x, remainder), s2 ) 
+
+-- chooseN (get multiple items from the same list without
+-- repeats)
+
+-- designing this differently from remove because I want it to run like
+-- a "normal" combinator and throw away the remainder
+-- It's still not exactly what I want, because it evaluates the combinators.
+-- or is it?
+
+-- Note after reflecting on this at tae kwon do grading:
+--   it needs to return [ TextGen g a ] not TextGen g [ a ]
+--   build a safe version of choose (a single item) and then
+--   use that to make chooseN by recursion
+--   flip the arguments: that way we can make a partial
+--   function (choose [list]) which can be called with n, which is
+--   a good way to adapt this to loading option files
+
+-- Starting point: a safe version of choose
+
+choose' :: (RandomGen g) => [ TextGen g a ] -> [ TextGen g a ]
+choose' []     = []
+choose' options = [ TextGen l ]
+  where l = \s ->  let ( i, s1 )      = randomR (0, (length options) - 1) s
+                       ( opts, _ )    = removel i options
+                       (TextGen optf) = head opts
+                       ( x, s2 )      = optf s1
+                   in ( x, s2 )
+
+-- A version which returns the rest of the options
+-- I'm stuck: how does p2 jump out of the lambda l to become remainder?
+-- Remember: don't need to rewrite remove, need to make a component which
+-- can work as a recursive part of chooseN
+
+remove' :: (RandomGen g) => [ TextGen g a ] -> TextGen g ( Maybe a,  [ TextGen g a ] )
+remove' []     = TextGen $ \s -> ( (Nothing, []), s )
+remove' options = TextGen l
+  where l = \s ->  let ( i, s1 )      = randomR (0, (length options) - 1) s
+                       ( p1, p2 )     = removel i options
+                       (TextGen optf) = head p1
+                       ( x, s2 )      = optf s1
+                   in ( (Just x , options), s2 )
+
+-- What does the lambda returned by remove' (and wrapped in a TextGen) do?
+-- use the gen to run randomR to pick an option from the list
+-- use the gen to run the option
+-- return the result of the option, and the rest of the list, in a form
+-- which can be unwrapped
+
+-- now use remove' to make chooseN
+-- order of arguments - list of options, then n of choices, so we
+-- can make a partial function over a list
+
+-- Separate the "pick n" from the "eval as TextGen" logic
+-- write a recursive function to pick n random elements from a list
+-- (of anything) and returns the new list, the remainder and a new gen
+-- variable
+
+-- Then write chooseN around it.
+-- (possibly need to split the generator when it goes into the different
+-- parts?)
+
+-- getStdGen wants g -> ( a, g ) so (sampleR list 3)
+
+sampleR :: (RandomGen g) => [ a ] -> Int -> g -> ( ([ a ], [ a ]), g )
+sampleR xs 0 s = ( ([], xs), s )
+sampleR xs n s = let ( i, s1 )      = randomR (0, (length xs) - 1) s
+                     ( p1, rest )   = removel i xs
+                     ( (p2, r2), s2 ) = sampleR rest (n - 1) s1
+                 in ( (p1 ++ p2, r2), s2 )
+
 
 
                                     
