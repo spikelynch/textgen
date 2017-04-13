@@ -7,6 +7,8 @@ module TextGen (
   ,choose
   ,choose'
   ,sampleR
+  ,chooseN
+  ,chooseI
   ,weighted
   ,remove
   ,list
@@ -192,8 +194,31 @@ sampleR xs n s = let ( i, s1 )      = randomR (0, (length xs) - 1) s
                  in ( (p1 ++ p2, r2), s2 )
 
 
+-- chooseN returns a generator which returns n generated a's
 
-                                    
+chooseN :: (RandomGen g) => [ TextGen g a ] -> Int -> TextGen g [ a ] 
+chooseN options n = TextGen $ \s -> let ( (sample, _), s1 ) = sampleR options n s
+                                        ( as, s2 ) = chainApply sample s1
+                                    in ( as, s2 )
+
+chainApply :: (RandomGen g) => [ TextGen g a ] -> g -> ( [ a ], g )
+chainApply []     s = ( [], s )
+chainApply (g:gs) s = let (TextGen gf) = g
+                          ( a, s1 ) = gf s
+                          ( as, sn ) = chainApply gs s1
+                      in ( a:as, sn )
+
+-- pass in a function which takes a list of [ a ] and returns a TextGen
+-- returns the resulting TextGen with the random choices fed to it?
+
+chooseI :: (RandomGen g) => [ TextGen g a ] -> Int -> ( [ a ] -> TextGen g a ) -> TextGen g a
+chooseI opts n f = TextGen $ \s -> let sampleG = chooseN opts n
+                                       (TextGen sampler) = sampleG
+                                       ( results, s1 ) = sampler s
+                                       (TextGen newgf) = f results
+                                   in newgf s1
+
+                                       
 -- (list [ TextGen ]) -> a TextGen which does every option in order
 
 list :: (RandomGen g) => [ TextGen g [ a ] ] -> TextGen g [ a ]
