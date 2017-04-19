@@ -9,6 +9,7 @@ module TextGen (
   ,sampleR
   ,chooseN
   ,chooseN'
+  ,choose2
   ,chooseI
   ,weighted
   ,remove
@@ -216,6 +217,20 @@ chainApply (g:gs) s = let (TextGen gf) = g
 chooseN' :: (RandomGen g) => [ TextGen g a ] -> Int -> TextGen g [ TextGen g a ]
 chooseN' options n = TextGen $ \s -> let ( (sample, _), s1 ) = sampleR options n s                                  in ( sample, s1 )
 
+
+  
+list2tuple :: (RandomGen g) => TextGen g [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a )
+list2tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
+                                         ( results, s1 ) = listf s
+                                         tuple = case results of
+                                                   (a:b:c) ->   ( a, b )
+                                                   (a:[])  ->   ( a, d )
+                                                   otherwise -> ( d, d )
+                                     in ( tuple, s1 )
+
+
+choose2 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a )
+choose2 options d = list2tuple (chooseN' options 2) d
 
 
 
