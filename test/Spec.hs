@@ -29,6 +29,11 @@ main = hspec $ do
   describe "remove" $ do
     it "checks (remove ws) removes one and returns the rest" $ property $ prop_remove
 
+  -- describe "remove" $ do
+  --   it "checks (chooseN 2 ws) returns two different ws" $ property $ prop_chooseN
+  --   pending
+
+
   describe "rep" $ do
     it "checks that rep creates N copies" $ do
       pending
@@ -114,6 +119,8 @@ prop_remove ws = monadicIO $ do
     Nothing -> assert True
     Just w' -> assert ( ( w' `elem` ws ) && (countin remainder == (countin ws) - 1 ) )
       where countin l = length $ filter (== w') l
+
+
 
 
 genlist :: [ TextGenCh ] -> IO [ Char ]
