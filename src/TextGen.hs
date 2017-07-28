@@ -372,7 +372,7 @@ loadVocab dir = do
 
 vocabGet :: Map String TextGenCh -> String -> TextGenCh
 vocabGet v name = case Map.lookup (name ++ ".txt") v of
-  Nothing -> word "not found"
+  Nothing -> list $ map word [ "[",  "file not found:",  name, "]" ] 
   Just gen -> gen
 
 getDir (x:xs) = x
