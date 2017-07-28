@@ -1,5 +1,7 @@
 module TextGen (
   TextGen(..)
+  ,TextGenCh(..)
+  ,Vocab(..)
   ,runTextGen
   ,word
   ,tgempty
@@ -22,15 +24,20 @@ module TextGen (
   ,upcase
   ,loadOptions
   ,loadList
+  ,loadVocab
   ) where
 
 import Control.Applicative
 import Control.Monad (liftM, ap, forM_)
 import Data.List (intercalate)
 import Data.Char (toUpper)
+import Data.Map (Map)
+import qualified Data.Map as Map
 import qualified Data.Text as T
 import qualified Data.Text.IO as Tio
 import System.Random
+import System.Directory (getDirectoryContents)
+import Text.Regex.Posix
 
 
 newtype TextGen s a = TextGen { runTextGen :: s -> ( a, s ) }
@@ -342,4 +349,32 @@ upcase :: [Char] -> [Char]
 upcase (x:xs) = (toUpper x):xs
 upcase []     = []
 
+
+-- Utilities for loading and manipulating vocab files
+
+type TextGenCh = TextGen StdGen [[Char]]
+
+type Vocab = (String -> TextGenCh)
+
+isTextFile :: String -> Bool
+isTextFile f = f =~ ".txt$"
+
+
+loadVocab :: String -> IO Vocab
+loadVocab dir = do
+  files <- getDirectoryContents dir
+  list <- mapM loadFile $ filter isTextFile files
+  return $ vocabGet $ Map.fromList list
+    where loadFile f = do
+            gen <- loadOptions ( dir ++ f )
+            return ( f, gen )
+
+
+vocabGet :: Map String TextGenCh -> String -> TextGenCh
+vocabGet v name = case Map.lookup (name ++ ".txt") v of
+  Nothing -> list $ map word [ "[",  "file not found:",  name, "]" ] 
+  Just gen -> gen
+
+getDir (x:xs) = x
+getDir _      = "./"
 
