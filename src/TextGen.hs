@@ -1,5 +1,7 @@
 module TextGen (
   TextGen(..)
+  ,TextGenCh(..)
+  ,Vocab(..)
   ,runTextGen
   ,word
   ,tgempty
@@ -22,6 +24,7 @@ module TextGen (
   ,upcase
   ,loadOptions
   ,loadList
+  ,loadVocab
   ) where
 
 import Control.Applicative
