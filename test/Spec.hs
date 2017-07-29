@@ -2,7 +2,21 @@ import Test.Hspec
 import Test.QuickCheck
 import Test.QuickCheck.Monadic
 
-import TextGen (TextGen, runTextGen, word, aan, choose, remove, list, randrep, rep, perhaps, smartjoin, dumbjoin)
+import TextGen (
+  TextGen
+  , runTextGen
+  , word
+  , aan
+  , choose
+  , chooseN
+  , remove
+  , list
+  , randrep
+  , rep
+  , perhaps
+  , smartjoin
+  , dumbjoin
+  )
 import System.Random
 
 import Data.List (intercalate)
@@ -29,9 +43,8 @@ main = hspec $ do
   describe "remove" $ do
     it "checks (remove ws) removes one and returns the rest" $ property $ prop_remove
 
-  -- describe "remove" $ do
-  --   it "checks (chooseN 2 ws) returns two different ws" $ property $ prop_chooseN
-  --   pending
+  describe "chooseN" $ do
+    it "checks (chooseN n ws) returns n elements from ws" $ property $ prop_chooseN
 
 
   describe "rep" $ do
@@ -120,6 +133,19 @@ prop_remove ws = monadicIO $ do
     Just w' -> assert ( ( w' `elem` ws ) && (countin remainder == (countin ws) - 1 ) )
       where countin l = length $ filter (== w') l
 
+
+prop_chooseN :: Positive Int -> [ [ Char ] ] -> Property
+prop_chooseN (Positive n) ws = monadicIO $ do
+  ws' <- run $ do
+    g <- return $ chooseN (map word ws) n
+    choices <- getStdRandom $ runTextGen g
+    flip mapM choices $ \w -> do
+      g' <- getStdRandom $ runTextGen w
+      return $ dumbjoin g'
+  l <- return $ length ws
+  l' <- return $ length ws'
+  assert $ if l < n then l' == l else l' == n
+  assert $ all (\w -> ( w `elem` ws )) ws'
 
 
 

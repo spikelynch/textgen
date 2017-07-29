@@ -10,9 +10,9 @@ module TextGen (
   ,choose'
   ,sampleR
   ,chooseN
-  ,chooseN'
   ,choose2
-  ,chooseI
+  ,choose3
+--  ,chooseI
   ,weighted
   ,remove
   ,list
@@ -203,26 +203,13 @@ sampleR xs n s = let ( i, s1 )      = randomR (0, (length xs) - 1) s
                  in ( (p1 ++ p2, r2), s2 )
 
 
--- chooseN returns a generator which returns n generated a's
-
-chooseN :: (RandomGen g) => [ TextGen g a ] -> Int -> TextGen g [ a ] 
-chooseN options n = TextGen $ \s -> let ( (sample, _), s1 ) = sampleR options n s
-                                        ( as, s2 ) = chainApply sample s1
-                                    in ( as, s2 )
-
-chainApply :: (RandomGen g) => [ TextGen g a ] -> g -> ( [ a ], g )
-chainApply []     s = ( [], s )
-chainApply (g:gs) s = let (TextGen gf) = g
-                          ( a, s1 ) = gf s
-                          ( as, sn ) = chainApply gs s1
-                      in ( a:as, sn )
 
 
+-- take a list of generators and an integer, returns a list of n
+-- generators, or fewer (if there were less than n in the original list)
 
--- this version doesn't run the TextGens
-
-chooseN' :: (RandomGen g) => [ TextGen g a ] -> Int -> TextGen g [ TextGen g a ]
-chooseN' options n = TextGen $ \s -> let ( (sample, _), s1 ) = sampleR options n s                                  in ( sample, s1 )
+chooseN :: (RandomGen g) => [ TextGen g a ] -> Int -> TextGen g [ TextGen g a ]
+chooseN options n = TextGen $ \s -> let ( (sample, _), s1 ) = sampleR options n s                                  in ( sample, s1 )
 
 
   
@@ -236,20 +223,37 @@ list2tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
                                      in ( tuple, s1 )
 
 
+-- d is the default if the list doesn't have two elements
+
 choose2 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a )
-choose2 options d = list2tuple (chooseN' options 2) d
+choose2 options def = list2tuple (chooseN options 2) def
+
+
+list3tuple :: (RandomGen g) => TextGen g [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
+list3tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
+                                         ( results, s1 ) = listf s
+                                         tuple = case results of
+                                                   (a:b:c:d) ->   ( a, b, c )
+                                                   (a:b:[])  ->   ( a, b, d )
+                                                   (a:[])    ->   ( a, d, d )
+                                                   otherwise ->   ( d, d, d )
+                                     in ( tuple, s1 )
+
+
+choose3 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
+choose3 options def = list3tuple (chooseN options 3) def
 
 
 
--- pass in a function which takes a list of [ a ] and returns a TextGen
--- returns the resulting TextGen with the random choices fed to it?
+-- -- pass in a function which takes a list of [ a ] and returns a TextGen
+-- -- returns the resulting TextGen with the random choices fed to it?
 
-chooseI :: (RandomGen g) => [ TextGen g a ] -> Int -> ( [ a ] -> TextGen g a ) -> TextGen g a
-chooseI opts n f = TextGen $ \s -> let sampleG = chooseN opts n
-                                       (TextGen sampler) = sampleG
-                                       ( results, s1 ) = sampler s
-                                       (TextGen newgf) = f results
-                                   in newgf s1
+-- chooseI :: (RandomGen g) => [ TextGen g a ] -> Int -> ( [ a ] -> TextGen g a ) -> TextGen g a
+-- chooseI opts n f = TextGen $ \s -> let sampleG = chooseN opts n
+--                                        (TextGen sampler) = sampleG
+--                                        ( results, s1 ) = sampler s
+--                                        (TextGen newgf) = f results
+--                                    in newgf s1
 
                                        
 -- (list [ TextGen ]) -> a TextGen which does every option in order
