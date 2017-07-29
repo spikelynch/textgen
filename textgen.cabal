@@ -1,5 +1,5 @@
 name:                textgen
-version:             0.5.1.0
+version:             0.5.2.0
 synopsis:            Simple combinator library for text generators
 description:         Please see README.md
 homepage:            https://github.com/spikelynch/textgen#readme
