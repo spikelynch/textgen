@@ -360,6 +360,12 @@ type TextGenCh = TextGen StdGen [[Char]]
 
 type Vocab = (String -> TextGenCh)
 
+-- TODO: vocab should return a [ TextGenCh ]
+
+-- choice = choose $ v "vocabfile"
+-- list = list $ v "vocabfile"
+-- ( a, b ) <- choose2 $ v "vocabfile"
+
 isTextFile :: String -> Bool
 isTextFile f = f =~ ".txt$"
 

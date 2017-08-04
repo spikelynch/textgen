@@ -140,7 +140,7 @@ prop_chooseN (Positive n) ws = monadicIO $ do
   ws' <- run $ do
     g <- return $ chooseN (map word ws) n
     choices <- getStdRandom $ runTextGen g
-    flip mapM choices $ \w -> do
+    forM choices $ \w -> do
       g' <- getStdRandom $ runTextGen w
       return $ dumbjoin g'
   l <- return $ length ws
@@ -161,7 +161,7 @@ nperhaps :: Int
 nperhaps = 50000
 
 tolerance :: Float
-tolerance = 0.2
+tolerance = 0.05
 
 prop_perhaps :: Positive Int -> Positive Int -> [ Char ] -> Property
 prop_perhaps (Positive n0) (Positive m0) w = monadicIO $ do
@@ -171,9 +171,15 @@ prop_perhaps (Positive n0) (Positive m0) w = monadicIO $ do
     forM [1..nperhaps] $ \_ -> do
       getStdRandom $ runTextGen g
   empties <- return $ length $ filter null results
-  ratio <- return $ (fromIntegral n / fromIntegral m)
+  ratio <- return $ (fromIntegral (n + 1) / fromIntegral m)
   got <- return $ ((fromIntegral (nperhaps - empties)) / fromIntegral nperhaps)
-  assert ( (abs (got - ratio)) < tolerance )
+  assert ( (got / ratio - 1 ) < tolerance )
+
+dumpStats :: Int -> Int -> Int -> IO ()
+dumpStats n m e = do
+  ratio <- return $ (fromIntegral (n + 1) / fromIntegral m)
+  got <- return $ ((fromIntegral (nperhaps - e)) / fromIntegral nperhaps)
+  putStrLn $ show ( n, m, e, nperhaps, ratio, got, got / ratio )
 
 prop_rep :: Positive Int -> [ Char ] -> Property
 prop_rep (Positive n) w = monadicIO $ do
