@@ -22,7 +22,6 @@ module TextGen (
   ,smartjoin
   ,dumbjoin
   ,upcase
-  ,loadOptions
   ,loadList
   ,loadVocab
   ) where
@@ -225,8 +224,8 @@ list2tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
 
 -- d is the default if the list doesn't have two elements
 
-choose2 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a )
-choose2 options def = list2tuple (chooseN options 2) def
+choose2 :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g ( TextGen g a, TextGen g a )
+choose2 def options = list2tuple (chooseN options 2) def
 
 
 list3tuple :: (RandomGen g) => TextGen g [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
@@ -285,12 +284,8 @@ perhaps (n, m) s1 = TextGen $ \s -> let ( n1, s' ) = randomR (0, m) s
                                         (TextGen s2f) = if n1 > n then list [] else s1
                                         in s2f s' 
 
--- loadOptions fileName -> loads a textfile and returns a choose TextGen
+-- loadList fileName -> loads a textfile and returns a [ TextGen ]
 
-loadOptions :: (RandomGen g) => [Char] -> IO (TextGen g [[Char]])
-loadOptions fname = do
-  contents <- fmap T.lines (Tio.readFile fname)
-  return $ choose $ map ( word . T.unpack ) contents
 
 loadList :: (RandomGen g) => [Char] -> IO ([TextGen g [[Char]]])
 loadList fname = do
@@ -358,7 +353,7 @@ upcase []     = []
 
 type TextGenCh = TextGen StdGen [[Char]]
 
-type Vocab = (String -> TextGenCh)
+type Vocab = (String -> [ TextGenCh ])
 
 -- TODO: vocab should return a [ TextGenCh ]
 
@@ -376,14 +371,14 @@ loadVocab dir = do
   list <- mapM loadFile $ filter isTextFile files
   return $ vocabGet $ Map.fromList list
     where loadFile f = do
-            gen <- loadOptions ( dir ++ f )
-            return ( f, gen )
+            gens <- loadList ( dir ++ f )
+            return ( f, gens )
 
 
-vocabGet :: Map String TextGenCh -> String -> TextGenCh
+vocabGet :: Map String [ TextGenCh ] -> String -> [ TextGenCh ]
 vocabGet v name = case Map.lookup (name ++ ".txt") v of
-  Nothing -> list $ map word [ "[",  "file not found:",  name, "]" ] 
-  Just gen -> gen
+  Nothing -> [ list $ map word [ "[",  "file not found:",  name, "]" ] ] 
+  Just gens -> gens
 
 getDir (x:xs) = x
 getDir _      = "./"
