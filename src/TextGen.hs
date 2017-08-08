@@ -1,3 +1,6 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module TextGen (
   TextGen(..)
   ,TextGenCh(..)
@@ -7,12 +10,11 @@ module TextGen (
   ,tgempty
   ,aan
   ,choose
-  ,choose'
+  ,choose1
   ,sampleR
   ,chooseN
   ,choose2
   ,choose3
---  ,chooseI
   ,weighted
   ,remove
   ,list
@@ -70,16 +72,36 @@ tgempty :: (RandomGen g) => TextGen g [[Char]]
 tgempty = return [ ]
 
 
+-- snazzy context-sensitive choose
+
+class TextChooser a where
+  choose :: [ TextGenCh ] -> a 
+
+type TGSimpleChooser   = TextGenCh
+type TGPairChooser     = (TextGen StdGen ( TextGenCh, TextGenCh ))
+type TGTripleChooser   = (TextGen StdGen ( TextGenCh, TextGenCh, TextGenCh ))
+
+
+instance TextChooser TGSimpleChooser where
+  choose gs = choose1 (word "-") gs
+
+instance TextChooser TGPairChooser where
+  choose gs = choose2 (word "-") gs
+
+instance TextChooser TGTripleChooser where
+  choose gs = choose3 (word "-") gs
+
+
 
 -- (choose [ TextGen ]) -> choose one of the TextGens in the list
                               
 
--- Note: choose throws an exception if options is an empty list
 
-choose :: (RandomGen g) => [ TextGen g a ] -> TextGen g a
-choose options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 1 ) s
-                                     (TextGen optf) = options !! i
-                                 in optf s'
+choose1 :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g a
+choose1 def  []   = def
+choose1 _ options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 1 ) s
+                                        (TextGen optf) = options !! i
+                                    in optf s'
 
 
 
@@ -239,20 +261,11 @@ list3tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
                                      in ( tuple, s1 )
 
 
-choose3 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
-choose3 options def = list3tuple (chooseN options 3) def
+choose3 :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
+choose3 def options = list3tuple (chooseN options 3) def
 
 
 
--- -- pass in a function which takes a list of [ a ] and returns a TextGen
--- -- returns the resulting TextGen with the random choices fed to it?
-
--- chooseI :: (RandomGen g) => [ TextGen g a ] -> Int -> ( [ a ] -> TextGen g a ) -> TextGen g a
--- chooseI opts n f = TextGen $ \s -> let sampleG = chooseN opts n
---                                        (TextGen sampler) = sampleG
---                                        ( results, s1 ) = sampler s
---                                        (TextGen newgf) = f results
---                                    in newgf s1
 
                                        
 -- (list [ TextGen ]) -> a TextGen which does every option in order
