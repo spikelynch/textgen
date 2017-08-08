@@ -19,7 +19,7 @@ import TextGen (
   )
 import System.Random
 
-import Data.List (intercalate)
+import Data.List (intercalate, nub)
 import Control.Monad (forM)
 
 type TextGenCh = TextGen StdGen [[Char]]
@@ -46,6 +46,13 @@ main = hspec $ do
 
   describe "chooseN" $ do
     it "checks (chooseN n ws) returns n elements from ws" $ property $ prop_chooseN
+
+  describe "choose2" $ do
+    it "checks that ( a1, a2 ) <- choose ws returns two distinct ws" $ property $ prop_choose2
+
+  describe "choose3" $ do
+    it "checks that ( a1, a2, a3 ) <- choose ws returns three distinct ws" $ property $ prop_choose3
+
 
   describe "perhaps" $ do
     it "checks that perhaps works" $ property $ prop_perhaps
@@ -147,6 +154,41 @@ prop_chooseN (Positive n) ws = monadicIO $ do
   l' <- return $ length ws'
   assert $ if l < n then l' == l else l' == n
   assert $ all (\w -> ( w `elem` ws )) ws'
+
+
+choose2gen :: [ [ Char ] ] -> TextGen StdGen ( TextGenCh, TextGenCh ) 
+choose2gen ws = TextGen.choose (map word ws)
+
+
+prop_choose2 :: [ [ Char ] ] -> Property
+prop_choose2 ws = monadicIO $ do
+  ( w1, w2 ) <- run $ do
+    ( g1, g2 ) <- getStdRandom $ runTextGen $ choose2gen $ nub ws
+    w1' <- getStdRandom $ runTextGen g1
+    w2' <- getStdRandom $ runTextGen g2
+    return ( dumbjoin w1', dumbjoin w2' )
+  assert $ ( w1 `elem` ws ) || ( w1 == "-" ) 
+  assert $ ( w2 `elem` ws ) || ( w2 == "-" ) 
+  assert $ ( w1 /= w2 ) || ( w1 == "-" && w2 == "-" )
+
+choose3gen :: [ [ Char ] ] -> TextGen StdGen ( TextGenCh, TextGenCh, TextGenCh ) 
+choose3gen ws = TextGen.choose (map word ws)
+
+
+prop_choose3 :: [ [ Char ] ] -> Property
+prop_choose3 ws = monadicIO $ do
+  ( w1, w2, w3 ) <- run $ do
+    ( g1, g2, g3 ) <- getStdRandom $ runTextGen $ choose3gen $ nub ws
+    w1' <- getStdRandom $ runTextGen g1
+    w2' <- getStdRandom $ runTextGen g2
+    w3' <- getStdRandom $ runTextGen g3
+    return ( dumbjoin w1', dumbjoin w2', dumbjoin w3' )
+  assert $ ( w1 `elem` ws ) || ( w1 == "-" ) 
+  assert $ ( w2 `elem` ws ) || ( w2 == "-" ) 
+  assert $ ( w3 `elem` ws ) || ( w3 == "-" ) 
+  assert $ ( w1 /= w2 ) || ( w1 == "-" && w2 == "-")
+  assert $ ( w1 /= w3 ) || ( w1 == "-" && w3 == "-")
+  assert $ ( w2 /= w3 ) || ( w2 == "-" && w3 == "-")
 
 
 

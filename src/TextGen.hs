@@ -1,3 +1,6 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
+
 module TextGen (
   TextGen(..)
   ,TextGenCh(..)
@@ -7,12 +10,11 @@ module TextGen (
   ,tgempty
   ,aan
   ,choose
-  ,choose'
+  ,choose1
   ,sampleR
   ,chooseN
   ,choose2
   ,choose3
---  ,chooseI
   ,weighted
   ,remove
   ,list
@@ -22,7 +24,6 @@ module TextGen (
   ,smartjoin
   ,dumbjoin
   ,upcase
-  ,loadOptions
   ,loadList
   ,loadVocab
   ) where
@@ -71,16 +72,36 @@ tgempty :: (RandomGen g) => TextGen g [[Char]]
 tgempty = return [ ]
 
 
+-- snazzy context-sensitive choose
+
+class TextChooser a where
+  choose :: [ TextGenCh ] -> a 
+
+type TGSimpleChooser   = TextGenCh
+type TGPairChooser     = (TextGen StdGen ( TextGenCh, TextGenCh ))
+type TGTripleChooser   = (TextGen StdGen ( TextGenCh, TextGenCh, TextGenCh ))
+
+
+instance TextChooser TGSimpleChooser where
+  choose gs = choose1 (word "-") gs
+
+instance TextChooser TGPairChooser where
+  choose gs = choose2 (word "-") gs
+
+instance TextChooser TGTripleChooser where
+  choose gs = choose3 (word "-") gs
+
+
 
 -- (choose [ TextGen ]) -> choose one of the TextGens in the list
                               
 
--- Note: choose throws an exception if options is an empty list
 
-choose :: (RandomGen g) => [ TextGen g a ] -> TextGen g a
-choose options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 1 ) s
-                                     (TextGen optf) = options !! i
-                                 in optf s'
+choose1 :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g a
+choose1 def  []   = def
+choose1 _ options = TextGen $ \s -> let ( i, s' ) = randomR (0, (length options) - 1 ) s
+                                        (TextGen optf) = options !! i
+                                    in optf s'
 
 
 
@@ -225,8 +246,8 @@ list2tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
 
 -- d is the default if the list doesn't have two elements
 
-choose2 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a )
-choose2 options def = list2tuple (chooseN options 2) def
+choose2 :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g ( TextGen g a, TextGen g a )
+choose2 def options = list2tuple (chooseN options 2) def
 
 
 list3tuple :: (RandomGen g) => TextGen g [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
@@ -240,20 +261,11 @@ list3tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
                                      in ( tuple, s1 )
 
 
-choose3 :: (RandomGen g) => [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
-choose3 options def = list3tuple (chooseN options 3) def
+choose3 :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g ( TextGen g a, TextGen g a, TextGen g a )
+choose3 def options = list3tuple (chooseN options 3) def
 
 
 
--- -- pass in a function which takes a list of [ a ] and returns a TextGen
--- -- returns the resulting TextGen with the random choices fed to it?
-
--- chooseI :: (RandomGen g) => [ TextGen g a ] -> Int -> ( [ a ] -> TextGen g a ) -> TextGen g a
--- chooseI opts n f = TextGen $ \s -> let sampleG = chooseN opts n
---                                        (TextGen sampler) = sampleG
---                                        ( results, s1 ) = sampler s
---                                        (TextGen newgf) = f results
---                                    in newgf s1
 
                                        
 -- (list [ TextGen ]) -> a TextGen which does every option in order
@@ -285,12 +297,8 @@ perhaps (n, m) s1 = TextGen $ \s -> let ( n1, s' ) = randomR (0, m) s
                                         (TextGen s2f) = if n1 > n then list [] else s1
                                         in s2f s' 
 
--- loadOptions fileName -> loads a textfile and returns a choose TextGen
+-- loadList fileName -> loads a textfile and returns a [ TextGen ]
 
-loadOptions :: (RandomGen g) => [Char] -> IO (TextGen g [[Char]])
-loadOptions fname = do
-  contents <- fmap T.lines (Tio.readFile fname)
-  return $ choose $ map ( word . T.unpack ) contents
 
 loadList :: (RandomGen g) => [Char] -> IO ([TextGen g [[Char]]])
 loadList fname = do
@@ -358,7 +366,7 @@ upcase []     = []
 
 type TextGenCh = TextGen StdGen [[Char]]
 
-type Vocab = (String -> TextGenCh)
+type Vocab = (String -> [ TextGenCh ])
 
 -- TODO: vocab should return a [ TextGenCh ]
 
@@ -376,14 +384,14 @@ loadVocab dir = do
   list <- mapM loadFile $ filter isTextFile files
   return $ vocabGet $ Map.fromList list
     where loadFile f = do
-            gen <- loadOptions ( dir ++ f )
-            return ( f, gen )
+            gens <- loadList ( dir ++ f )
+            return ( f, gens )
 
 
-vocabGet :: Map String TextGenCh -> String -> TextGenCh
+vocabGet :: Map String [ TextGenCh ] -> String -> [ TextGenCh ]
 vocabGet v name = case Map.lookup (name ++ ".txt") v of
-  Nothing -> list $ map word [ "[",  "file not found:",  name, "]" ] 
-  Just gen -> gen
+  Nothing -> [ list $ map word [ "[",  "file not found:",  name, "]" ] ] 
+  Just gens -> gens
 
 getDir (x:xs) = x
 getDir _      = "./"
