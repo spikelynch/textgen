@@ -9,6 +9,7 @@ module TextGen (
   ,word
   ,tgempty
   ,aan
+  ,postgen
   ,choose
   ,choose1
   ,sampleR
@@ -71,25 +72,6 @@ word a = return [ a ]
 tgempty :: (RandomGen g) => TextGen g [[Char]]
 tgempty = return [ ]
 
-
--- snazzy context-sensitive choose
-
-class TextChooser a where
-  choose :: [ TextGenCh ] -> a 
-
-type TGSimpleChooser   = TextGenCh
-type TGPairChooser     = (TextGen StdGen ( TextGenCh, TextGenCh ))
-type TGTripleChooser   = (TextGen StdGen ( TextGenCh, TextGenCh, TextGenCh ))
-
-
-instance TextChooser TGSimpleChooser where
-  choose gs = choose1 (word "-") gs
-
-instance TextChooser TGPairChooser where
-  choose gs = choose2 (word "-") gs
-
-instance TextChooser TGTripleChooser where
-  choose gs = choose3 (word "-") gs
 
 
 
@@ -309,14 +291,14 @@ loadList fname = do
 -- generic transform: take a function f from [ a ] -> [ a ] and 'wrap' a
 -- TextGen in it so the TextGen's output is applied to it before returning
 
-prefix :: (RandomGen g) => ( [ a ] -> [ a ] ) -> TextGen g [ a ] ->  TextGen g [ a ]
-prefix tr g = TextGen $ \s -> let (TextGen gf) = g
-                                  ( orig, s' ) = gf s
-                              in ( tr orig, s' )
+postgen :: (RandomGen g) => ( [ a ] -> [ a ] ) -> TextGen g [ a ] ->  TextGen g [ a ]
+postgen tr g = TextGen $ \s -> let (TextGen gf) = g
+                                   ( orig, s' ) = gf s
+                               in ( tr orig, s' )
 
 
 aan :: (RandomGen g) => TextGen g [ [ Char ] ] -> TextGen g [ [ Char ] ]
-aan g = prefix article g
+aan g = postgen article g
   where article []       = []
         article (w:ws)   = (article_w w):w:ws
         article_w []     = []
@@ -324,6 +306,7 @@ aan g = prefix article g
 
 vowel :: Char -> Bool
 vowel x = elem x "aeiouAEIOU"
+
 
 
 
@@ -362,13 +345,35 @@ upcase (x:xs) = (toUpper x):xs
 upcase []     = []
 
 
+-- snazzy context-sensitive choose
+-- which doesn't work the way I want it to when it's sent to a
+-- v "filename" (because this locks down the return type)
+
+class TextChooser a where
+  choose :: [ TextGenCh ] -> a 
+
+type TGSimpleChooser   = TextGenCh
+type TGPairChooser     = (TextGen StdGen ( TextGenCh, TextGenCh ))
+type TGTripleChooser   = (TextGen StdGen ( TextGenCh, TextGenCh, TextGenCh ))
+
+
+instance TextChooser TGSimpleChooser where
+  choose gs = choose1 (word "-") gs
+
+instance TextChooser TGPairChooser where
+  choose gs = choose2 (word "-") gs
+
+instance TextChooser TGTripleChooser where
+  choose gs = choose3 (word "-") gs
+
+
+
 -- Utilities for loading and manipulating vocab files
 
 type TextGenCh = TextGen StdGen [[Char]]
 
 type Vocab = (String -> [ TextGenCh ])
 
--- TODO: vocab should return a [ TextGenCh ]
 
 -- choice = choose $ v "vocabfile"
 -- list = list $ v "vocabfile"
