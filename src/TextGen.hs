@@ -12,6 +12,7 @@ module TextGen (
   ,postgen
   ,choose
   ,choose1
+  ,choose1ple
   ,sampleR
   ,chooseN
   ,choose2
@@ -215,6 +216,19 @@ chooseN :: (RandomGen g) => [ TextGen g a ] -> Int -> TextGen g [ TextGen g a ]
 chooseN options n = TextGen $ \s -> let ( (sample, _), s1 ) = sampleR options n s                                  in ( sample, s1 )
 
 
+
+list2onple :: (RandomGen g) => TextGen g [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a )
+list2onple glist d = TextGen $ \s -> let (TextGen listf) = glist
+                                         (results, s1) = listf s
+                                         oneple = case results of
+                                                    (a:[])    -> a 
+                                                    otherwise -> d
+                                     in ( oneple, s1 )
+
+choose1ple :: (RandomGen g) => TextGen g a -> [ TextGen g a ] -> TextGen g ( TextGen g a )
+choose1ple def options = list2onple (chooseN options 1) def
+
+
   
 list2tuple :: (RandomGen g) => TextGen g [ TextGen g a ] -> TextGen g a -> TextGen g ( TextGen g a, TextGen g a )
 list2tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
@@ -224,6 +238,7 @@ list2tuple glist d = TextGen $ \s -> let (TextGen listf) = glist
                                                    (a:[])  ->   ( a, d )
                                                    otherwise -> ( d, d )
                                      in ( tuple, s1 )
+
 
 
 -- d is the default if the list doesn't have two elements
@@ -353,12 +368,16 @@ class TextChooser a where
   choose :: [ TextGenCh ] -> a 
 
 type TGSimpleChooser   = TextGenCh
+type TGOneChooser      = (TextGen StdGen TextGenCh)
 type TGPairChooser     = (TextGen StdGen ( TextGenCh, TextGenCh ))
 type TGTripleChooser   = (TextGen StdGen ( TextGenCh, TextGenCh, TextGenCh ))
 
 
 instance TextChooser TGSimpleChooser where
   choose gs = choose1 (word "-") gs
+
+instance TextChooser TGOneChooser where
+  choose gs = choose1ple (word "-") gs
 
 instance TextChooser TGPairChooser where
   choose gs = choose2 (word "-") gs
